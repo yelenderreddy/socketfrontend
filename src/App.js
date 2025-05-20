@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { io } from "socket.io-client";
 
+// Connect to your backend
 const socket = io("https://socketbackend-production-0ab5.up.railway.app", {
-  transports: ["websocket"],
+  transports: ["websocket", "polling"],
+  reconnectionAttempts: 5,
+  timeout: 20000,
 });
 
 function App() {
@@ -11,6 +14,7 @@ function App() {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
 
+  // Listen for incoming messages
   useEffect(() => {
     socket.on("receive_message", (data) => {
       setMessages((prev) => [...prev, data]);
@@ -34,6 +38,7 @@ function App() {
     }
   };
 
+  // Show name input screen
   if (!username) {
     return (
       <div style={{ padding: 20 }}>
@@ -48,12 +53,21 @@ function App() {
     );
   }
 
+  // Show chat UI
   return (
     <div style={{ padding: 20 }}>
       <h2>Chatting as <strong>{username}</strong></h2>
-      <div style={{ marginBottom: "1rem", border: "1px solid #ddd", padding: 10, maxHeight: 300, overflowY: "auto" }}>
+      <div style={{
+        marginBottom: "1rem",
+        border: "1px solid #ddd",
+        padding: 10,
+        maxHeight: 300,
+        overflowY: "auto"
+      }}>
         {messages.map((msg, index) => (
-          <div key={index}><strong>{msg.username}:</strong> {msg.message}</div>
+          <div key={index}>
+            <strong>{msg.username}:</strong> {msg.message}
+          </div>
         ))}
       </div>
       <input
