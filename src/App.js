@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { io } from "socket.io-client";
 
-// Connect to your backend
+// Connect to backend
 const socket = io("https://socketbackend-production-0ab5.up.railway.app", {
-  transports: ["websocket", "polling"],
+  transports: ["websocket"],
   reconnectionAttempts: 5,
   timeout: 20000,
 });
@@ -13,22 +13,43 @@ function App() {
   const [tempName, setTempName] = useState("");
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
+  const [typingUser, setTypingUser] = useState(null);
 
-  // Listen for incoming messages
+  // Listen for events
   useEffect(() => {
     socket.on("receive_message", (data) => {
       setMessages((prev) => [...prev, data]);
     });
 
+    socket.on("user_typing", (user) => {
+      setTypingUser(user);
+    });
+
+    socket.on("user_stop_typing", () => {
+      setTypingUser(null);
+    });
+
     return () => {
       socket.off("receive_message");
+      socket.off("user_typing");
+      socket.off("user_stop_typing");
     };
   }, []);
 
   const sendMessage = () => {
-    if (message.trim() && username) {
+    if (message.trim()) {
       socket.emit("send_message", { username, message });
       setMessage("");
+      socket.emit("stop_typing");
+    }
+  };
+
+  const handleTyping = (e) => {
+    setMessage(e.target.value);
+    if (e.target.value.length > 0) {
+      socket.emit("typing", username);
+    } else {
+      socket.emit("stop_typing");
     }
   };
 
@@ -38,7 +59,6 @@ function App() {
     }
   };
 
-  // Show name input screen
   if (!username) {
     return (
       <div style={{ padding: 20 }}>
@@ -53,16 +73,16 @@ function App() {
     );
   }
 
-  // Show chat UI
   return (
     <div style={{ padding: 20 }}>
       <h2>Chatting as <strong>{username}</strong></h2>
+
       <div style={{
-        marginBottom: "1rem",
         border: "1px solid #ddd",
         padding: 10,
         maxHeight: 300,
-        overflowY: "auto"
+        overflowY: "auto",
+        marginBottom: 10
       }}>
         {messages.map((msg, index) => (
           <div key={index}>
@@ -70,10 +90,16 @@ function App() {
           </div>
         ))}
       </div>
+
+      {typingUser && <p><em>💬 {typingUser} is typing...</em></p>}
+
       <input
         value={message}
-        onChange={(e) => setMessage(e.target.value)}
+        onChange={handleTyping}
         placeholder="Type your message..."
+        onKeyDown={(e) => {
+          if (e.key === "Enter") sendMessage();
+        }}
       />
       <button onClick={sendMessage}>Send</button>
     </div>
